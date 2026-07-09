@@ -1,0 +1,42 @@
+/* rt-recent-post-with-thumbnail element-one */
+
+.rt-recent-post-with-thumbnail.element-one{
+    margin-bottom:20px;
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder{
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post{
+    position:relative;
+    min-height:85px;
+    margin-bottom:30px;
+    padding-left:95px;
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post:last-child,
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post:only-child{
+    margin-bottom:0;
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post img{
+    position:absolute;;
+    top:5px;
+    left:0;
+    width:80px;
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post .title{
+    margin-bottom:7px;
+    font-weight:500;
+    font-size:16px;
+    color:#333;
+    line-height:26px;
+}
+
+.rt-recent-post-with-thumbnail.element-one > ul.rt-recent-post-with-thumbnail-holder > li.rt-recent-post-with-thumbnail-post .date{
+    margin-bottom:3px;
+    font-size:14px;
+    color:rgba(0,0,0,0.6);
+    line-height:26px;
+}

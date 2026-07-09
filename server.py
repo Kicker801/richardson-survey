@@ -9,6 +9,8 @@ import smtplib
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -146,7 +148,10 @@ def send_email(answers: List[SurveyAnswer]) -> None:
         raise HTTPException(status_code=502, detail='Survey email could not be sent.') from exc
 
 
-@app.get('/')
+BASE_DIR = Path(__file__).parent
+
+
+@app.get('/health')
 def health_check():
     return {'status': 'ok'}
 
@@ -164,3 +169,10 @@ def submit_survey(submission: SurveySubmission):
 
     send_email(answers)
     return {'status': 'sent'}
+
+app.mount('/assets', StaticFiles(directory=BASE_DIR / 'assets'), name='assets')
+
+
+@app.get('/')
+def serve_index():
+    return FileResponse(BASE_DIR / 'index.html')

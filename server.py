@@ -41,12 +41,71 @@ class SurveySubmission(BaseModel):
     answers: List[SurveyAnswer]
 
 
-def build_pdf(answers: List[SurveyAnswer]) -> bytes:
+def score_lead(answers: List[SurveyAnswer]):
+    values = {a.label: a.value for a in answers}
+    score = 0
+    breakdown = []
+
+    def add(points, reason):
+        nonlocal score
+        if points:
+            score += points
+            breakdown.append(f'{reason} (+{points})')
+
+    qty_map = {'Under 72': 5, '72-143': 10, '144-287': 15, '288-575': 20, '576+': 25}
+    qty_val = values.get('Estimated quantity for your FIRST order', '')
+    add(qty_map.get(qty_val, 0), f'First order quantity: {qty_val}' if qty_val else '')
+
+    reorder_map = {
+        'One-time order': 0, 'Quarterly': 10, 'Monthly': 15,
+        'Seasonal Drops': 12, 'Ongoing / Continuous Production': 20,
+    }
+    reorder_val = values.get('Estimated reorder frequency', '')
+    add(reorder_map.get(reorder_val, 0), f'Reorder frequency: {reorder_val}' if reorder_val else '')
+
+    budget_map = {'Under $1,000': 2, '$1,000-$5,000': 8, '$5,000-$10,000': 14, '$10,000+': 20}
+    budget_val = values.get('What is your approximate yearly budget for custom hats?', '')
+    add(budget_map.get(budget_val, 0), f'Budget: {budget_val}' if budget_val else '')
+
+    timeline_map = {'1-2 months': 10, '3-6 months': 6, '6-12 months': 3}
+    timeline_val = values.get('What is your desired timeline for your initial order?', '')
+    add(timeline_map.get(timeline_val, 0), f'Timeline: {timeline_val}' if timeline_val else '')
+
+    artwork_map = {'Yes': 10, 'In Progress': 5, 'No': 0}
+    artwork_val = values.get('Do you already have artwork/logo files ready?', '')
+    add(artwork_map.get(artwork_val, 0), f'Artwork ready: {artwork_val}' if artwork_val else '')
+
+    type_map = {
+        'Established Brand': 10, 'Corporate Business': 10, 'Retail Store': 8,
+        'Clothing Brand': 8, 'Marketing / Promotional Company': 8,
+        'Event / Organization': 6, 'Startup / New Brand': 4, 'Influencer / Creator Brand': 4,
+    }
+    type_val = values.get('What best describes your business?', '')
+    selected_types = [t.strip() for t in type_val.split(',') if t.strip()]
+    type_points = max((type_map.get(t, 0) for t in selected_types), default=0)
+    add(type_points, f'Business type: {type_val}' if type_val else '')
+
+    selling_val = values.get('Do you currently sell hats or apparel?', '')
+    add(5 if selling_val == 'Yes' else 0, 'Already selling hats/apparel' if selling_val == 'Yes' else '')
+
+    score = min(score, 100)
+
+    if score >= 70:
+        tier = 'HOT LEAD'
+    elif score >= 40:
+        tier = 'WARM LEAD'
+    else:
+        tier = 'COLD LEAD'
+
+    return score, tier, breakdown
+
+
+def build_pdf(answers: List[SurveyAnswer], score: int, tier: str) -> bytes:
     buffer = BytesIO()
     page_width, page_height = letter
     margin = 42
     gutter = 18
-    title_height = 74
+    title_height = 104
     column_width = (page_width - (margin * 2) - gutter) / 2
     column_height = page_height - (margin * 2) - title_height
 
@@ -82,13 +141,26 @@ def build_pdf(answers: List[SurveyAnswer]) -> bytes:
         id='right_column',
     )
 
+    tier_colors = {
+        'HOT LEAD': (0.80, 0.15, 0.15),
+        'WARM LEAD': (0.85, 0.55, 0.05),
+        'COLD LEAD': (0.20, 0.40, 0.75),
+    }
+    tier_color = tier_colors.get(tier, (0.2, 0.2, 0.2))
+
     def draw_header(canvas, document):
         canvas.saveState()
         canvas.setFont('Helvetica-Bold', 16)
         canvas.drawString(margin, page_height - margin, 'Custom Headwear Client Qualification Form')
         canvas.setFont('Helvetica', 9)
         canvas.drawString(margin, page_height - margin - 16, datetime.now().strftime('Submitted %B %d, %Y at %I:%M %p'))
-        canvas.line(margin, page_height - margin - 30, page_width - margin, page_height - margin - 30)
+
+        canvas.setFillColorRGB(*tier_color)
+        canvas.setFont('Helvetica-Bold', 14)
+        canvas.drawString(margin, page_height - margin - 38, f'Lead Score: {score}/100 \u2014 {tier}')
+        canvas.setFillColorRGB(0, 0, 0)
+
+        canvas.line(margin, page_height - margin - 50, page_width - margin, page_height - margin - 50)
         canvas.restoreState()
 
     doc.addPageTemplates([PageTemplate(id='two_column_answers', frames=[left_frame, right_frame], onPage=draw_header)])
@@ -120,17 +192,24 @@ def send_email(answers: List[SurveyAnswer]) -> None:
             detail='Survey email is not configured. Add SURVEY_SMTP_USER and SURVEY_SMTP_APP_PASSWORD to .env.',
         )
 
-    pdf_bytes = build_pdf(answers)
+    score, tier, breakdown = score_lead(answers)
+    pdf_bytes = build_pdf(answers, score, tier)
     summary = '\n'.join(f'{answer.label}: {answer.value}' for answer in answers)
+    tier_emoji = {'HOT LEAD': '\U0001F525', 'WARM LEAD': '\u2600\uFE0F', 'COLD LEAD': '\u2744\uFE0F'}.get(tier, '')
 
     message = EmailMessage()
     business_name = get_business_name(answers)
-    message['Subject'] = f'Custom Headwear Survey: {business_name}' if business_name else 'Custom Headwear Survey Submission'
+    subject_prefix = f'{tier_emoji} {tier} ({score}/100)'
+    message['Subject'] = (
+        f'{subject_prefix}: {business_name}' if business_name else f'{subject_prefix} - Custom Headwear Survey'
+    )
     message['From'] = SURVEY_SMTP_USER
     message['To'] = SURVEY_TO_EMAIL
     message.set_content(
         'A new custom headwear survey has been submitted.\n\n'
-        f'{summary}\n\n'
+        f'LEAD SCORE: {score}/100 ({tier})\n'
+        + ('\n'.join(f'  - {reason}' for reason in breakdown) if breakdown else '  (no scoring signals found)')
+        + f'\n\n{summary}\n\n'
         'A PDF copy is attached.'
     )
     message.add_attachment(

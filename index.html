@@ -1752,7 +1752,7 @@ body.survey-menu-open {
     return !!container.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked');
   }
 
-  var SURVEY_API_URL = 'http://localhost:8000/survey-submit';
+  var SURVEY_API_URL = '/survey-submit';
 
   function cleanText(text) {
     return (text || '').replace(/\s+/g, ' ').trim().replace(/:$/, '');

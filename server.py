@@ -170,7 +170,7 @@ def submit_survey(submission: SurveySubmission):
     send_email(answers)
     return {'status': 'sent'}
 
-app.mount('/assets', StaticFiles(directory=BASE_DIR / 'assets'), name='assets')
+app.mount('/assets', StaticFiles(directory=BASE_DIR / 'Wear The Best _ Richardson_files'), name='assets')
 
 
 @app.get('/')

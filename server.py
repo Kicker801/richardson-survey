@@ -171,6 +171,11 @@ def submit_survey(submission: SurveySubmission):
     return {'status': 'sent'}
 
 app.mount('/assets', StaticFiles(directory=BASE_DIR / 'Wear The Best _ Richardson_files'), name='assets')
+app.mount(
+    '/Wear The Best _ Richardson_files',
+    StaticFiles(directory=BASE_DIR / 'Wear The Best _ Richardson_files'),
+    name='assets_legacy',
+)
 
 
 @app.get('/')
